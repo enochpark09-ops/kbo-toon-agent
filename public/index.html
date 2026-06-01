@@ -1168,26 +1168,38 @@ async function generateFluxImages() {
 }
 
 async function callFluxAPI(prompt, apiKey) {
-  // Step 1: Submit 요청
-  const submitResp = await fetch('/api/flux', {
+  // 브라우저에서 Flux API 직접 호출 (Vercel 서버리스 타임아웃 우회)
+  // Step 1: 생성 요청
+  const submitResp = await fetch('https://api.bfl.ml/v1/flux-pro-1.1', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, apiKey, action: 'submit' })
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Key': apiKey
+    },
+    body: JSON.stringify({
+      prompt,
+      width: 768,
+      height: 1024,
+      prompt_upsampling: false,
+      safety_tolerance: 2,
+      output_format: 'jpeg'
+    })
   });
-  if (!submitResp.ok) {
-    const err = await submitResp.json();
-    throw new Error(JSON.stringify(err));
-  }
-  const { requestId } = await submitResp.json();
-  if (!requestId) throw new Error('No requestId from Flux');
 
-  // Step 2: 브라우저에서 직접 폴링 (30초 × 2초 간격 = 최대 60초)
+  if (!submitResp.ok) {
+    const err = await submitResp.text();
+    throw new Error('Flux 요청 실패: ' + err);
+  }
+
+  const submitData = await submitResp.json();
+  const requestId = submitData.id;
+  if (!requestId) throw new Error('requestId 없음');
+
+  // Step 2: 결과 폴링 (2초 간격, 최대 60초)
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 2000));
-    const pollResp = await fetch('/api/flux', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, action: 'poll', requestId })
+    const pollResp = await fetch(`https://api.bfl.ml/v1/get_result?id=${requestId}`, {
+      headers: { 'X-Key': apiKey }
     });
     if (!pollResp.ok) continue;
     const pollData = await pollResp.json();
@@ -1195,10 +1207,10 @@ async function callFluxAPI(prompt, apiKey) {
       return pollData.result.sample;
     }
     if (pollData.status === 'Error' || pollData.status === 'Failed') {
-      throw new Error('Flux generation failed: ' + JSON.stringify(pollData));
+      throw new Error('Flux 생성 실패: ' + JSON.stringify(pollData));
     }
   }
-  throw new Error('Flux generation timed out (60s)');
+  throw new Error('Flux 생성 타임아웃 (60초)');
 }
 
 function copyAllPrompts() {
