@@ -785,19 +785,19 @@ body {
 <script>
 // ─── DATA ──────────────────────────────────────────────
 const TEAMS = [
-  {team:"KIA 타이거즈", emoji:"🐯", name:"타이론", trait:"열정적인 클린업 히터", catch:"불꽃이다!", style:"근육질 빨간 망토 호랑이"},
-  {team:"삼성 라이온즈", emoji:"🦁", name:"라이언", trait:"냉철한 에이스 투수", catch:"해보자고.", style:"파란 선글라스 쓴 멋진 사자"},
-  {team:"LG 트윈스",   emoji:"👯", name:"쌍순이", trait:"찰떡 콤비 유격수", catch:"우리가 간다!", style:"빨간 모자 쓴 개구쟁이"},
-  {team:"두산 베어스", emoji:"🐻", name:"베어",   trait:"묵직한 4번 타자", catch:"곰이 화났다.", style:"덩치 큰 파란 곰"},
-  {team:"KT 위즈",    emoji:"🧙", name:"위즈",   trait:"트릭 피처 마법사", catch:"마법을 부려보지!", style:"보라색 망토 마법사"},
-  {team:"SSG 랜더스", emoji:"🚀", name:"랜더",   trait:"우주급 외야수", catch:"착륙했다!", style:"헬멧 쓴 우주탐험가"},
-  {team:"롯데 자이언츠",emoji:"⚡",name:"자이언", trait:"부산 토박이 강타자", catch:"가즈아!", style:"거대한 파란 거인"},
-  {team:"한화 이글스", emoji:"🦅", name:"이글",   trait:"속구파 독수리 투수", catch:"날아올라!", style:"날카로운 눈매 독수리"},
-  {team:"NC 다이노스", emoji:"🦕", name:"다이노", trait:"고대급 파워 슬러거", catch:"으르렁!", style:"귀여운 초록 공룡"},
-  {team:"키움 히어로즈",emoji:"🦸", name:"히어로",trait:"빠른발 리드오프 영웅", catch:"영웅이 왔다!", style:"망토 두른 슈퍼히어로"}
+  {team:"KIA 타이거즈",  emoji:"🐯", name:"타이거",  trait:"열정적인 클린업 히터",   catch:"불꽃이다!",      style:"빨간 유니폼의 줄무늬 호랑이, 치비 3D 피규어 스타일", img:"/mascots/kia-tigers.png"},
+  {team:"삼성 라이온즈", emoji:"🦁", name:"라이언",  trait:"냉철한 에이스 투수",     catch:"해보자고.",      style:"파란 갈기의 귀여운 사자, 치비 3D 피규어 스타일",    img:"/mascots/samsung-lions.png"},
+  {team:"LG 트윈스",    emoji:"⚾", name:"LG보이",  trait:"찰떡 콤비 유격수",       catch:"우리가 간다!",   style:"빨간 모자 쓴 LG 유니폼 소년, 치비 3D 피규어 스타일", img:"/mascots/lg-twins.png"},
+  {team:"두산 베어스",  emoji:"🐻", name:"베어",    trait:"묵직한 4번 타자",        catch:"곰이 화났다.",   style:"파란 유니폼의 갈색 곰, 치비 3D 피규어 스타일",      img:"/mascots/doosan-bears.png"},
+  {team:"KT 위즈",      emoji:"🧙", name:"위즈",    trait:"마법 트릭 피처",         catch:"마법을 부려보지!",style:"검은 망토 보라별 마법사 소년, 치비 3D 피규어 스타일", img:"/mascots/kt-wiz.png"},
+  {team:"SSG 랜더스",   emoji:"🕶️", name:"갈매기",  trait:"쿨한 센터 외야수",       catch:"착륙했다!",      style:"선글라스 낀 흰 갈매기, 네이비 줄무늬 유니폼, 치비 3D", img:"/mascots/ssg-landers.png"},
+  {team:"롯데 자이언츠",emoji:"🐺", name:"허스키",  trait:"부산 토박이 강타자",      catch:"가즈아!",        style:"빨간 우주복 입은 회색 허스키, 치비 3D 피규어 스타일",  img:"/mascots/lotte-giants.png"},
+  {team:"한화 이글스",  emoji:"🦅", name:"이글",    trait:"화끈한 독수리 투수",      catch:"날아올라!",      style:"오렌지 유니폼의 갈색 독수리, 치비 3D 피규어 스타일",  img:"/mascots/hanwha-eagles.png"},
+  {team:"NC 다이노스",  emoji:"🦕", name:"다이노",  trait:"고대급 파워 슬러거",      catch:"으르렁!",        style:"빨간 유니폼의 갈색 공룡, 치비 3D 피규어 스타일",     img:"/mascots/nc-dinos.png"},
+  {team:"키움 히어로즈",emoji:"🦸", name:"히어로",  trait:"빠른발 리드오프 영웅",    catch:"영웅이 왔다!",   style:"검정+빨강 야구점퍼의 소년 히어로, 치비 3D 피규어 스타일", img:"/mascots/kiwoom-heroes.png"}
 ];
 
-let mascots = TEAMS.map((t,i) => ({...t, id:i, imgData:null, imgDesc:'', registered:false}));
+let mascots = TEAMS.map((t,i) => ({...t, id:i, imgData:t.img, imgDesc:`${t.style}. KBO 마스코트 캐릭터.`, registered:true}));
 let editingId = null;
 let selectedChips = new Set([0,1]);
 let history = [];
@@ -810,7 +810,13 @@ function loadData() {
     const saved = localStorage.getItem('kbo_mascots');
     if (saved) {
       const parsed = JSON.parse(saved);
-      mascots = mascots.map((m,i) => parsed[i] ? {...m,...parsed[i]} : m);
+      mascots = mascots.map((m,i) => {
+        if (!parsed[i]) return m;
+        const merged = {...m, ...parsed[i]};
+        // keep default img if saved one is null/empty
+        if (!merged.imgData && m.imgData) merged.imgData = m.imgData;
+        return merged;
+      });
     }
     const h = localStorage.getItem('kbo_history');
     if (h) history = JSON.parse(h);
@@ -842,7 +848,7 @@ function renderMascots() {
   grid.innerHTML = mascots.map(m => `
     <div class="mascot-card ${m.registered ? 'has-image' : ''}" onclick="editMascot(${m.id})">
       ${m.imgData
-        ? `<img src="${m.imgData}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-bottom:4px;border:2px solid var(--gold);">`
+        ? `<img src="${m.imgData}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;margin-bottom:4px;border:2px solid var(--gold);" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="mc-emoji" style="display:none">${m.emoji}</div>`
         : `<div class="mc-emoji">${m.emoji}</div>`}
       <div class="mc-team">${m.team}</div>
       <div class="mc-name">${m.name}</div>
@@ -874,6 +880,9 @@ function editMascot(id) {
     hint.style.display = 'block';
     document.getElementById('dropZone').classList.remove('has-img');
   }
+  // show img path info if it's a URL path
+  const imgPathInfo = document.getElementById('imgPathInfo');
+  if (imgPathInfo) imgPathInfo.textContent = m.imgData && m.imgData.startsWith('/') ? `경로: ${m.imgData}` : '';
   document.getElementById('editPanel').style.display = 'block';
   document.getElementById('editPanel').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
@@ -935,7 +944,7 @@ function renderChips() {
   if (!row) return;
   row.innerHTML = mascots.map((m,i) => `
     <div class="char-chip ${selectedChips.has(i)?'on':''}" onclick="toggleChip(${i})">
-      ${m.imgData ? `<img src="${m.imgData}" style="width:16px;height:16px;border-radius:50%;vertical-align:middle;margin-right:4px;">` : m.emoji+' '}
+      ${m.imgData ? `<img src="${m.imgData}" style="width:18px;height:18px;border-radius:4px;vertical-align:middle;margin-right:4px;object-fit:cover;" onerror="this.style.display='none'">` : m.emoji+' '}
       ${m.name}
     </div>
   `).join('');
@@ -1077,8 +1086,8 @@ function renderResult(r) {
       <div class="panel-scene">
         <span class="panel-effect">${p.effect}</span>
         <div class="panel-chars">${p.chars.map(c => c.imgData
-          ? `<img src="${c.imgData}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid white;display:inline-block;">`
-          : c.emoji).join('')}
+          ? `<img src="${c.imgData}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:2px solid white;display:inline-block;margin:0 2px;" onerror="this.outerHTML='<span style=font-size:30px>${c.emoji}</span>'">`
+          : `<span style="font-size:30px">${c.emoji}</span>`).join('')}
         </div>
         <div class="panel-action">${p.action}</div>
       </div>
@@ -1173,7 +1182,11 @@ function renderHistory() {
   }
   list.innerHTML = history.map((h,i) => `
     <div class="history-card" onclick="viewHistory(${i})">
-      <div class="hist-thumb">${h.chars[0].emoji}</div>
+      <div class="hist-thumb">
+        ${h.chars[0]?.imgData
+          ? `<img src="${h.chars[0].imgData}" style="width:48px;height:48px;border-radius:6px;object-fit:cover;" onerror="this.outerHTML='<span style=font-size:22px>${h.chars[0].emoji}</span>'">`
+          : `<span style="font-size:22px">${h.chars[0]?.emoji || '⚾'}</span>`}
+      </div>
       <div class="hist-info">
         <div class="hist-date">${new Date(h.date).toLocaleDateString('ko-KR')}</div>
         <div class="hist-story">${h.story.substring(0,45)}...</div>
