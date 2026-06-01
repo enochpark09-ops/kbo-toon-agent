@@ -848,7 +848,9 @@ function renderMascots() {
   grid.innerHTML = mascots.map(m => `
     <div class="mascot-card ${m.registered ? 'has-image' : ''}" onclick="editMascot(${m.id})">
       ${m.imgData
-        ? `<img src="${m.imgData}" style="width:56px;height:56px;border-radius:8px;object-fit:cover;margin-bottom:4px;border:2px solid var(--gold);" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"><div class="mc-emoji" style="display:none">${m.emoji}</div>`
+        ? `<div style="width:60px;height:60px;border-radius:8px;overflow:hidden;margin:0 auto 4px;border:2px solid var(--gold);background:#f0f0f0;">
+             <img src="${m.imgData}" style="width:260%;height:260%;object-fit:cover;object-position:2% 2%;margin-left:-80%;margin-top:-5%;" onerror="this.parentElement.outerHTML='<div class=mc-emoji>${m.emoji}</div>'">
+           </div>`
         : `<div class="mc-emoji">${m.emoji}</div>`}
       <div class="mc-team">${m.team}</div>
       <div class="mc-name">${m.name}</div>
@@ -944,7 +946,11 @@ function renderChips() {
   if (!row) return;
   row.innerHTML = mascots.map((m,i) => `
     <div class="char-chip ${selectedChips.has(i)?'on':''}" onclick="toggleChip(${i})">
-      ${m.imgData ? `<img src="${m.imgData}" style="width:18px;height:18px;border-radius:4px;vertical-align:middle;margin-right:4px;object-fit:cover;" onerror="this.style.display='none'">` : m.emoji+' '}
+      ${m.imgData
+        ? `<div style="width:20px;height:20px;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:4px;flex-shrink:0;">
+             <img src="${m.imgData}" style="width:260%;height:260%;object-fit:cover;object-position:2% 2%;margin-left:-80%;margin-top:-5%;" onerror="this.parentElement.outerHTML='${m.emoji} '">
+           </div>`
+        : m.emoji + ' '}
       ${m.name}
     </div>
   `).join('');
@@ -1085,9 +1091,11 @@ function renderResult(r) {
       <span class="panel-num">${p.num}</span>
       <div class="panel-scene" id="scene-${p.num}">
         <span class="panel-effect">${p.effect}</span>
-        <div class="panel-chars" style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
+        <div class="panel-chars" style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">
           ${p.chars.map(c => c.imgData
-            ? `<img src="${c.imgData}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;object-position:top;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.15);" onerror="this.outerHTML='<span style=font-size:44px>${c.emoji}</span>'">`
+            ? `<div style="width:72px;height:72px;border-radius:10px;overflow:hidden;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.15);flex-shrink:0;background:#f5f5ff;">
+                 <img src="${c.imgData}" style="width:260%;height:260%;object-fit:cover;object-position:2% 2%;margin-left:-80%;margin-top:-5%;" onerror="this.parentElement.outerHTML='<span style=font-size:44px>${c.emoji}</span>'">
+               </div>`
             : `<span style="font-size:44px">${c.emoji}</span>`).join('')}
         </div>
         <div class="panel-action">${p.action}</div>
