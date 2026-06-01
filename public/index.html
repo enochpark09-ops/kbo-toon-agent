@@ -725,13 +725,12 @@ body {
 
     <div class="api-section">
       <h3>🎨 Flux API (Black Forest Labs)</h3>
-      <div class="api-row">
-        <input class="field-input" id="fluxApiKey" type="password" placeholder="bfl-..." />
-        <button class="btn btn-secondary" onclick="saveKey('flux')">저장</button>
+      <div style="padding:10px 12px; background:#d1f5e0; border-radius:6px; font-size:12px; color:#1a6b3c; line-height:1.6;">
+        ✅ API 키가 Vercel 환경변수 <code>BFL_API_KEY</code>에 설정되어 있습니다.<br>
+        키를 변경하려면 Vercel 대시보드 → Environment Variables에서 수정 후 Redeploy 하세요.
       </div>
       <div class="api-note">
-        Flux 1.1 Pro Ultra 또는 Flux Dev 키를 사용합니다.<br>
-        발급: <a href="https://api.bfl.ml" target="_blank" style="color:var(--panel)">api.bfl.ml</a> → 가입 후 API Key 발급
+        잔여 크레딧 확인: <a href="https://dashboard.bfl.ai" target="_blank" style="color:var(--panel)">dashboard.bfl.ai</a>
       </div>
     </div>
 
@@ -1168,35 +1167,34 @@ async function generateFluxImages() {
 }
 
 async function callFluxAPI(prompt, apiKey) {
-  // Vercel 서버리스 함수 경유 (CORS 우회)
-  // Step 1: 생성 요청 → requestId 받기
+  // Step 1: 생성 요청 (서버가 환경변수 키 사용, apiKey는 미전송)
   const submitResp = await fetch('/api/flux', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, apiKey, action: 'submit' })
+    body: JSON.stringify({ prompt, action: 'submit' })
   });
   if (!submitResp.ok) {
     const err = await submitResp.json().catch(() => ({}));
     throw new Error('submit 실패: ' + JSON.stringify(err));
   }
-  const { requestId } = await submitResp.json();
+  const { requestId, pollingUrl } = await submitResp.json();
   if (!requestId) throw new Error('requestId 없음');
 
-  // Step 2: 폴링 (서버리스 경유, 2초 간격 최대 60초)
+  // Step 2: polling_url로 결과 확인 (2초 간격, 최대 60초)
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 2000));
     const pollResp = await fetch('/api/flux', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ apiKey, action: 'poll', requestId })
+      body: JSON.stringify({ action: 'poll', pollingUrl })
     });
     if (!pollResp.ok) continue;
-    const pollData = await pollResp.json();
-    if (pollData.status === 'Ready' && pollData.result?.sample) {
-      return pollData.result.sample;
+    const data = await pollResp.json();
+    if (data.status === 'Ready' && data.result?.sample) {
+      return data.result.sample;
     }
-    if (pollData.status === 'Error' || pollData.status === 'Failed') {
-      throw new Error('Flux 생성 실패: ' + JSON.stringify(pollData));
+    if (data.status === 'Error' || data.status === 'Failed') {
+      throw new Error('생성 실패: ' + JSON.stringify(data));
     }
   }
   throw new Error('타임아웃 (60초)');

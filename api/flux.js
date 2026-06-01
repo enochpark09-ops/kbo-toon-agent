@@ -1,38 +1,37 @@
-// api/flux.js — Vercel serverless function
-// Flux API: submit → return requestId immediately (polling은 브라우저에서)
-
 export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { prompt, apiKey, action } = req.body;
-  if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
+  // 환경변수에서 API 키 읽기 (브라우저에 키 노출 없음)
+  const apiKey = process.env.BFL_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'BFL_API_KEY 환경변수가 설정되지 않았습니다' });
+
+  const { prompt, action, pollingUrl } = req.body;
 
   try {
-    // action=poll: 결과 폴링
+    // 폴링
     if (action === 'poll') {
-      const { requestId } = req.body;
-      const pollRes = await fetch(`https://api.bfl.ml/v1/get_result?id=${requestId}`, {
-        headers: { 'X-Key': apiKey }
+      if (!pollingUrl) return res.status(400).json({ error: 'pollingUrl required' });
+      const pollRes = await fetch(pollingUrl, {
+        headers: { 'X-Key': apiKey, 'accept': 'application/json' }
       });
-      const pollData = await pollRes.json();
-      return res.status(200).json(pollData);
+      return res.status(200).json(await pollRes.json());
     }
 
-    // action=submit (기본): 생성 요청
+    // 생성 요청
     if (!prompt) return res.status(400).json({ error: 'prompt required' });
 
-    const submitRes = await fetch('https://api.bfl.ml/v1/flux-pro-1.1', {
+    const submitRes = await fetch('https://api.bfl.ai/v1/flux-pro-1.1', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-Key': apiKey
+        'X-Key': apiKey,
+        'accept': 'application/json'
       },
       body: JSON.stringify({
         prompt,
@@ -45,14 +44,15 @@ export default async function handler(req, res) {
     });
 
     const submitData = await submitRes.json();
-    if (!submitRes.ok) {
-      return res.status(submitRes.status).json({ error: submitData });
-    }
+    if (!submitRes.ok) return res.status(submitRes.status).json({ error: submitData });
 
-    return res.status(200).json({ requestId: submitData.id });
+    return res.status(200).json({
+      requestId: submitData.id,
+      pollingUrl: submitData.polling_url
+    });
 
   } catch (err) {
-    console.error('Flux API error:', err);
+    console.error('Flux error:', err);
     return res.status(500).json({ error: err.message });
   }
 }
