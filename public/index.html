@@ -1168,38 +1168,27 @@ async function generateFluxImages() {
 }
 
 async function callFluxAPI(prompt, apiKey) {
-  // 브라우저에서 Flux API 직접 호출 (Vercel 서버리스 타임아웃 우회)
-  // Step 1: 생성 요청
-  const submitResp = await fetch('https://api.bfl.ml/v1/flux-pro-1.1', {
+  // Vercel 서버리스 함수 경유 (CORS 우회)
+  // Step 1: 생성 요청 → requestId 받기
+  const submitResp = await fetch('/api/flux', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Key': apiKey
-    },
-    body: JSON.stringify({
-      prompt,
-      width: 768,
-      height: 1024,
-      prompt_upsampling: false,
-      safety_tolerance: 2,
-      output_format: 'jpeg'
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, apiKey, action: 'submit' })
   });
-
   if (!submitResp.ok) {
-    const err = await submitResp.text();
-    throw new Error('Flux 요청 실패: ' + err);
+    const err = await submitResp.json().catch(() => ({}));
+    throw new Error('submit 실패: ' + JSON.stringify(err));
   }
-
-  const submitData = await submitResp.json();
-  const requestId = submitData.id;
+  const { requestId } = await submitResp.json();
   if (!requestId) throw new Error('requestId 없음');
 
-  // Step 2: 결과 폴링 (2초 간격, 최대 60초)
+  // Step 2: 폴링 (서버리스 경유, 2초 간격 최대 60초)
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 2000));
-    const pollResp = await fetch(`https://api.bfl.ml/v1/get_result?id=${requestId}`, {
-      headers: { 'X-Key': apiKey }
+    const pollResp = await fetch('/api/flux', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, action: 'poll', requestId })
     });
     if (!pollResp.ok) continue;
     const pollData = await pollResp.json();
@@ -1210,7 +1199,7 @@ async function callFluxAPI(prompt, apiKey) {
       throw new Error('Flux 생성 실패: ' + JSON.stringify(pollData));
     }
   }
-  throw new Error('Flux 생성 타임아웃 (60초)');
+  throw new Error('타임아웃 (60초)');
 }
 
 function copyAllPrompts() {
