@@ -1081,13 +1081,14 @@ function renderResult(r) {
 
   const strip = document.getElementById('comicStrip');
   strip.innerHTML = r.panels.map(p => `
-    <div class="panel">
+    <div class="panel" id="panel-${p.num}">
       <span class="panel-num">${p.num}</span>
-      <div class="panel-scene">
+      <div class="panel-scene" id="scene-${p.num}">
         <span class="panel-effect">${p.effect}</span>
-        <div class="panel-chars">${p.chars.map(c => c.imgData
-          ? `<img src="${c.imgData}" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:2px solid white;display:inline-block;margin:0 2px;" onerror="this.outerHTML='<span style=font-size:30px>${c.emoji}</span>'">`
-          : `<span style="font-size:30px">${c.emoji}</span>`).join('')}
+        <div class="panel-chars" style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap;">
+          ${p.chars.map(c => c.imgData
+            ? `<img src="${c.imgData}" style="width:80px;height:80px;border-radius:10px;object-fit:cover;object-position:top;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.15);" onerror="this.outerHTML='<span style=font-size:44px>${c.emoji}</span>'">`
+            : `<span style="font-size:44px">${c.emoji}</span>`).join('')}
         </div>
         <div class="panel-action">${p.action}</div>
       </div>
@@ -1135,16 +1136,20 @@ async function generateFluxImages() {
       val.textContent = '완료';
 
       // Update panel with real image
-      const panelScene = document.getElementById('comicStrip').children[i].querySelector('.panel-scene');
-      panelScene.innerHTML = `
-        <img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;" />
-        <div class="panel-overlay">${currentResult.panels[i].action}</div>
-      `;
-      panelScene.style.position = 'relative';
-      panelScene.style.overflow = 'hidden';
+      const panelScene = document.getElementById(`scene-${currentResult.panels[i].num}`);
+      if (panelScene) {
+        panelScene.innerHTML = `
+          <img src="${imgUrl}" style="width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;border-radius:0;" />
+          <div class="panel-overlay" style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.55));padding:16px 8px 6px;color:white;font-size:10px;text-align:center;">${currentResult.panels[i].action}</div>
+        `;
+        panelScene.style.position = 'relative';
+        panelScene.style.overflow = 'hidden';
+        panelScene.style.padding = '0';
+      }
     } catch(e) {
       dot.className = 'status-dot dot-err';
-      val.textContent = '실패';
+      val.textContent = '실패: ' + (e.message || '').substring(0, 30);
+      console.error('Flux error panel', i, e);
     }
 
     await new Promise(r => setTimeout(r, 500));
@@ -1155,15 +1160,37 @@ async function generateFluxImages() {
 }
 
 async function callFluxAPI(prompt, apiKey) {
-  // Flux API call via Vercel serverless function (to avoid CORS)
-  const resp = await fetch('/api/flux', {
+  // Step 1: Submit 요청
+  const submitResp = await fetch('/api/flux', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt, apiKey })
+    body: JSON.stringify({ prompt, apiKey, action: 'submit' })
   });
-  if (!resp.ok) throw new Error('Flux API error');
-  const data = await resp.json();
-  return data.imageUrl;
+  if (!submitResp.ok) {
+    const err = await submitResp.json();
+    throw new Error(JSON.stringify(err));
+  }
+  const { requestId } = await submitResp.json();
+  if (!requestId) throw new Error('No requestId from Flux');
+
+  // Step 2: 브라우저에서 직접 폴링 (30초 × 2초 간격 = 최대 60초)
+  for (let i = 0; i < 30; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const pollResp = await fetch('/api/flux', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, action: 'poll', requestId })
+    });
+    if (!pollResp.ok) continue;
+    const pollData = await pollResp.json();
+    if (pollData.status === 'Ready' && pollData.result?.sample) {
+      return pollData.result.sample;
+    }
+    if (pollData.status === 'Error' || pollData.status === 'Failed') {
+      throw new Error('Flux generation failed: ' + JSON.stringify(pollData));
+    }
+  }
+  throw new Error('Flux generation timed out (60s)');
 }
 
 function copyAllPrompts() {

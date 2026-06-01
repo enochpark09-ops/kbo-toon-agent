@@ -1,19 +1,33 @@
 // api/flux.js — Vercel serverless function
-// Flux API proxy to avoid CORS issues from browser
+// Flux API: submit → return requestId immediately (polling은 브라우저에서)
+
+export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { prompt, apiKey } = req.body;
-
-  if (!prompt || !apiKey) {
-    return res.status(400).json({ error: 'prompt and apiKey required' });
-  }
+  const { prompt, apiKey, action } = req.body;
+  if (!apiKey) return res.status(400).json({ error: 'apiKey required' });
 
   try {
-    // Step 1: Submit generation request to Flux
+    // action=poll: 결과 폴링
+    if (action === 'poll') {
+      const { requestId } = req.body;
+      const pollRes = await fetch(`https://api.bfl.ml/v1/get_result?id=${requestId}`, {
+        headers: { 'X-Key': apiKey }
+      });
+      const pollData = await pollRes.json();
+      return res.status(200).json(pollData);
+    }
+
+    // action=submit (기본): 생성 요청
+    if (!prompt) return res.status(400).json({ error: 'prompt required' });
+
     const submitRes = await fetch('https://api.bfl.ml/v1/flux-pro-1.1', {
       method: 'POST',
       headers: {
@@ -30,45 +44,12 @@ export default async function handler(req, res) {
       })
     });
 
-    if (!submitRes.ok) {
-      const err = await submitRes.text();
-      return res.status(submitRes.status).json({ error: `Flux submit error: ${err}` });
-    }
-
     const submitData = await submitRes.json();
-    const requestId = submitData.id;
-
-    if (!requestId) {
-      return res.status(500).json({ error: 'No request ID from Flux' });
+    if (!submitRes.ok) {
+      return res.status(submitRes.status).json({ error: submitData });
     }
 
-    // Step 2: Poll for result (max 60s)
-    let imageUrl = null;
-    for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 2000));
-
-      const pollRes = await fetch(`https://api.bfl.ml/v1/get_result?id=${requestId}`, {
-        headers: { 'X-Key': apiKey }
-      });
-
-      if (!pollRes.ok) continue;
-
-      const pollData = await pollRes.json();
-
-      if (pollData.status === 'Ready' && pollData.result?.sample) {
-        imageUrl = pollData.result.sample;
-        break;
-      }
-      if (pollData.status === 'Error' || pollData.status === 'Failed') {
-        return res.status(500).json({ error: 'Flux generation failed' });
-      }
-    }
-
-    if (!imageUrl) {
-      return res.status(504).json({ error: 'Flux generation timed out' });
-    }
-
-    return res.status(200).json({ imageUrl });
+    return res.status(200).json({ requestId: submitData.id });
 
   } catch (err) {
     console.error('Flux API error:', err);
