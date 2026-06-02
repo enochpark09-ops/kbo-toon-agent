@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KBO 4컷 만화 에이전트</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(90deg, #ff6b00, #ffcc00, #00c6ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1px;
+    }
+    header p {
+      margin-top: 6px;
+      font-size: 0.9rem;
+      color: #888;
+    }
+
+    /* ── Grid Layout ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto 28px;
+    }
+
+    /* ── Cut Card ── */
+    .cut-card {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 14px;
+      padding: 20px;
+      position: relative;
+    }
+    .cut-card h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #ff6b00;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cut-card h3 .badge {
+      background: #ff6b00;
+      color: #fff;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    /* ── Side Block ── */
+    .sides { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .side-block {
+      background: #13151f;
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid #252836;
+    }
+    .side-block .side-label {
+      font-size: 0.72rem;
+      color: #666;
+      margin-bottom: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .side-block.left  .side-label { color: #5b8fff; }
+    .side-block.right .side-label { color: #ff5b5b; }
+
+    /* ── Inputs ── */
+    label { display: block; font-size: 0.75rem; color: #777; margin-bottom: 3px; margin-top: 8px; }
+    label:first-of-type { margin-top: 0; }
+
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      background: #0f1117;
+      border: 1px solid #2a2d3a;
+      border-radius: 7px;
+      color: #e0e0e0;
+      padding: 7px 10px;
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    select:focus, input:focus { border-color: #ff6b00; }
+
+    .summary-row { margin-top: 2px; }
+    .summary-row label { color: #aaa; }
+
+    /* ── Preview Row ── */
+    .preview-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      min-height: 54px;
+    }
+    .char-preview {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: #0f1117;
+      border: 1px solid #252836;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
+    .char-preview-placeholder {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      background: #13151f;
+      border: 1px dashed #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+    }
+    .vs-badge {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #ffcc00;
+      margin: 0 4px;
+    }
+
+    /* ── Action Bar ── */
+    .action-bar {
+      max-width: 1100px;
+      margin: 0 auto 32px;
+      display: flex;
+      justify-content: center;
+    }
+    .btn-generate {
+      background: linear-gradient(135deg, #ff6b00, #ff3d00);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 16px 48px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 20px rgba(255,107,0,0.35);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .btn-generate:hover  { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(255,107,0,0.5); }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    /* ── Result ── */
+    #result-area {
+      max-width: 820px;
+      margin: 0 auto;
+      display: none;
+    }
+    #result-area h2 {
+      text-align: center;
+      font-size: 1.1rem;
+      color: #aaa;
+      margin-bottom: 16px;
+    }
+    #result-area img {
+      width: 100%;
+      border-radius: 14px;
+      border: 2px solid #2a2d3a;
+      display: block;
+    }
+    .result-link {
+      display: block;
+      text-align: center;
+      margin-top: 14px;
+      color: #ff6b00;
+      font-size: 0.9rem;
+      text-decoration: none;
+    }
+    .result-link:hover { text-decoration: underline; }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1e2130;
+      color: #e0e0e0;
+      border: 1px solid #3a3d50;
+      border-radius: 10px;
+      padding: 12px 24px;
+      font-size: 0.9rem;
+      transition: transform .3s ease;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.error { border-color: #ff4444; color: #ff9999; }
+    #toast.success { border-color: #44bb44; color: #99dd99; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚾ KBO 4컷 만화 에이전트</h1>
+  <p>구단 마스코트로 오늘의 KBO 4컷 만화를 자동 생성·배포합니다</p>
+</header>
+
+<div class="grid" id="cuts-grid"></div>
+
+<div class="action-bar">
+  <button class="btn-generate" id="btn-gen" onclick="generateCartoon()">
+    🔥 오늘자 만화 배포하기
+  </button>
+</div>
+
+<div id="result-area">
+  <h2>✅ 생성 완료!</h2>
+  <img id="result-img" src="" alt="생성된 만화">
+  <a id="result-link" class="result-link" href="#" target="_blank">🔗 배포된 URL 열기</a>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── 데이터 ──────────────────────────────────────────
+const TEAMS = [
+  { value: "Team Kia",     label: "KIA 타이거즈" },
+  { value: "Team Hanwha",  label: "한화 이글스" },
+  { value: "Team Lotte",   label: "롯데 자이언츠" },
+  { value: "Team Samsung", label: "삼성 라이온즈" },
+  { value: "Team Kiwoom",  label: "키움 히어로즈" },
+  { value: "Team NC",      label: "NC 다이노스" },
+  { value: "Team SSG",     label: "SSG 랜더스" },
+  { value: "Team KT",      label: "KT 위즈" },
+  { value: "Team Doosan",  label: "두산 베어스" },
+  { value: "Team LG",      label: "LG 트윈스" },
+];
+
+const NUM_LABELS = {
+   1:"승리", 2:"패배", 3:"기쁨", 4:"슬픔", 5:"화남",
+   6:"아픔", 7:"타자", 8:"투수", 9:"포수",10:"깃발",
+  11:"질주",12:"홈런",13:"다이빙",14:"응원",15:"작전",
+  16:"하이파이브",17:"집중",18:"당황",19:"파이팅",20:"탈진",
+  21:"메인"
+};
+
+const DEFAULTS = [
+  { lt:"Team Hanwha", ln:1,  lt2:"오늘은 우리가 이긴다!",   rt:"Team Kia",    rn:5,  rt2:"어림없지!",         s:"▶ 1컷: 기선제압, 두 팀의 자존심 대결" },
+  { lt:"Team Kia",    ln:7,  lt2:"이 타구 받아봐라!",       rt:"Team Hanwha", rn:8,  rt2:"내 공을 칠 수 있을까?", s:"▶ 2컷: 타자 vs 투수, 클라이맥스 승부" },
+  { lt:"Team Hanwha", ln:4,  lt2:"아... 오늘도 어렵네",      rt:"Team Kia",    rn:9,  rt2:"막아냈다!",          s:"▶ 3컷: 위기와 기회, 엎치락뒤치락" },
+  { lt:"Team Kia",    ln:1,  lt2:"우리가 챔피언!",          rt:"Team Hanwha", rn:2,  rt2:"다음엔 반드시...",    s:"▶ 4컷: 짜릿한 마무리, 승자와 패자" },
+];
+
+// ── 팀 select 옵션 HTML ──────────────────────────────
+function teamOptions(selected) {
+  return TEAMS.map(t =>
+    `<option value="${t.value}" ${t.value===selected?'selected':''}>${t.label}</option>`
+  ).join('');
+}
+
+// ── 번호 select 옵션 HTML ──────────────────────────
+function numOptions(selected) {
+  return Array.from({length:21}, (_,i)=>i+1).map(n =>
+    `<option value="${n}" ${n===selected?'selected':''}>${n}. ${NUM_LABELS[n]}</option>`
+  ).join('');
+}
+
+// ── 캐릭터 미리보기 src ──────────────────────────────
+function charSrc(team, num) {
+  return `/asset/${encodeURIComponent(team)}/${num}.png`;
+}
+
+// ── 컷 카드 HTML 생성 ────────────────────────────────
+function buildCard(idx) {
+  const d   = DEFAULTS[idx];
+  const id  = idx + 1;
+  const emo = ["⚡","💥","😤","🏆"][idx];
+  return `
+  <div class="cut-card" id="card-${id}">
+    <h3><span class="badge">${id}</span>${emo} ${id}번째 컷 설정</h3>
+    <div class="sides">
+      <!-- 왼쪽 -->
+      <div class="side-block left">
+        <div class="side-label">🔵 홈팀 (왼쪽)</div>
+        <label>구단</label>
+        <select id="lt-team-${id}" onchange="updatePreview(${id})">
+          ${teamOptions(d.lt)}
+        </select>
+        <label>표정 번호</label>
+        <select id="lt-num-${id}" onchange="updatePreview(${id})">
+          ${numOptions(d.ln)}
+        </select>
+        <label>대사</label>
+        <input type="text" id="lt-text-${id}" value="${d.lt2}" placeholder="왼쪽 캐릭터 대사">
+      </div>
+      <!-- 오른쪽 -->
+      <div class="side-block right">
+        <div class="side-label">🔴 원정팀 (오른쪽)</div>
+        <label>구단</label>
+        <select id="rt-team-${id}" onchange="updatePreview(${id})">
+          ${teamOptions(d.rt)}
+        </select>
+        <label>표정 번호</label>
+        <select id="rt-num-${id}" onchange="updatePreview(${id})">
+          ${numOptions(d.rn)}
+        </select>
+        <label>대사</label>
+        <input type="text" id="rt-text-${id}" value="${d.rt2}" placeholder="오른쪽 캐릭터 대사">
+      </div>
+    </div>
+    <!-- 미리보기 -->
+    <div class="preview-row" id="preview-${id}"></div>
+    <!-- 요약 -->
+    <div class="summary-row">
+      <label>📝 하단 요약 문구</label>
+      <input type="text" id="summary-${id}" value="${d.s}" placeholder="이 컷의 한줄 설명">
+    </div>
+  </div>`;
+}
+
+// ── 미리보기 업데이트 ─────────────────────────────────
+function updatePreview(id) {
+  const lt   = document.getElementById(`lt-team-${id}`).value;
+  const ln   = document.getElementById(`lt-num-${id}`).value;
+  const rt   = document.getElementById(`rt-team-${id}`).value;
+  const rn   = document.getElementById(`rt-num-${id}`).value;
+  const area = document.getElementById(`preview-${id}`);
+
+  const makeImg = (team, num) => {
+    const img = document.createElement('img');
+    img.className = 'char-preview';
+    img.src = charSrc(team, num);
+    img.onerror = () => {
+      const ph = document.createElement('div');
+      ph.className = 'char-preview-placeholder';
+      ph.textContent = '🎭';
+      img.replaceWith(ph);
+    };
+    return img;
+  };
+
+  area.innerHTML = '';
+  area.appendChild(makeImg(lt, ln));
+  const vs = document.createElement('span');
+  vs.className = 'vs-badge';
+  vs.textContent = 'VS';
+  area.appendChild(vs);
+  area.appendChild(makeImg(rt, rn));
+}
+
+// ── 초기 렌더링 ──────────────────────────────────────
+(function init() {
+  const grid = document.getElementById('cuts-grid');
+  for (let i = 0; i < 4; i++) {
+    grid.insertAdjacentHTML('beforeend', buildCard(i));
+    updatePreview(i + 1);
+  }
+})();
+
+// ── Toast ─────────────────────────────────────────────
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => { t.className = ''; }, 3200);
+}
+
+// ── 만화 생성 ─────────────────────────────────────────
+async function generateCartoon() {
+  const btn = document.getElementById('btn-gen');
+
+  // 데이터 수집
+  const payload = Array.from({length:4}, (_,i) => {
+    const id = i + 1;
+    return {
+      left_team:  document.getElementById(`lt-team-${id}`).value,
+      left_num:   parseInt(document.getElementById(`lt-num-${id}`).value),
+      left_text:  document.getElementById(`lt-text-${id}`).value.trim(),
+      right_team: document.getElementById(`rt-team-${id}`).value,
+      right_num:  parseInt(document.getElementById(`rt-num-${id}`).value),
+      right_text: document.getElementById(`rt-text-${id}`).value.trim(),
+      summary:    document.getElementById(`summary-${id}`).value.trim(),
+    };
+  });
+
+  // 유효성 검사
+  for (const [i, p] of payload.entries()) {
+    if (!p.left_text || !p.right_text) {
+      showToast(`⚠️ ${i+1}번 컷의 대사를 입력해주세요.`, 'error');
+      return;
+    }
+  }
+
+  // 버튼 로딩 상태
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>만화 생성 중...';
+  showToast('⏳ 4컷 만화를 생성하고 있습니다...');
+
+  try {
+    const res  = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      showToast('✅ 만화 배포 완료!', 'success');
+
+      // 결과 영역 표시
+      const area = document.getElementById('result-area');
+      const img  = document.getElementById('result-img');
+      const lnk  = document.getElementById('result-link');
+      img.src  = data.url + '?t=' + Date.now();
+      lnk.href = data.url;
+      area.style.display = 'block';
+      area.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      showToast('❌ 오류: ' + (data.message || '알 수 없는 오류'), 'error');
+    }
+  } catch (err) {
+    showToast('❌ 네트워크 오류: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔥 오늘자 만화 배포하기';
+  }
+}
+</script>
+</body>
+</html>
